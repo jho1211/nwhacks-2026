@@ -1,0 +1,5 @@
+0 avocado_underripe
+1 avocado_breaking
+2 avocado_ripe1
+3 avocado_ripe2
+4 avocado_overripe
