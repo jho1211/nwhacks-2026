@@ -10,15 +10,17 @@ import { router } from 'expo-router';
 
 import { CameraView } from '@/components/camera';
 import { useProduceClassifier } from '@/hooks/useProduceClassifier';
+import { ProduceType } from '@/types/produce';
 
 export default function HomeScreen() {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [selectedProduce, setSelectedProduce] = useState<ProduceType>('avocado');
   const { isLoading, isModelReady, result, error, loadModel, classifyImage, clearResult } = useProduceClassifier();
 
-  // Load the avocado model on mount (we have this model ready)
+  // Load the selected produce model on mount and when selection changes
   useEffect(() => {
-    loadModel('avocado');
-  }, [loadModel]);
+    loadModel(selectedProduce);
+  }, [selectedProduce, loadModel]);
 
   // Navigate to results when classification is complete
   useEffect(() => {
@@ -46,17 +48,62 @@ export default function HomeScreen() {
     clearResult();
   };
 
+  // Toggle between produce types
+  const toggleProduceType = () => {
+    setSelectedProduce(prev => prev === 'avocado' ? 'banana' : 'avocado');
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <SafeAreaView style={styles.header}>
         <View style={styles.headerContent}>
-          <Text style={styles.logo}>🥑 RipeSense</Text>
+          <Text style={styles.logo}>
+            {selectedProduce === 'avocado' ? '🥑' : '🍌'} RipeSense
+          </Text>
           {!isModelReady && (
-            <Text style={styles.loadingText}>Loading model...</Text>
+            <Text style={styles.loadingText}>Loading...</Text>
           )}
         </View>
       </SafeAreaView>
+
+      {/* Produce Type Selector */}
+      <View style={styles.selectorContainer}>
+        <TouchableOpacity 
+          style={styles.selector}
+          onPress={toggleProduceType}
+          activeOpacity={0.8}
+        >
+          <TouchableOpacity
+            style={[
+              styles.selectorOption,
+              selectedProduce === 'avocado' && styles.selectorOptionActive,
+            ]}
+            onPress={() => setSelectedProduce('avocado')}
+          >
+            <Text style={[
+              styles.selectorText,
+              selectedProduce === 'avocado' && styles.selectorTextActive,
+            ]}>
+              🥑 Avocado
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.selectorOption,
+              selectedProduce === 'banana' && styles.selectorOptionActive,
+            ]}
+            onPress={() => setSelectedProduce('banana')}
+          >
+            <Text style={[
+              styles.selectorText,
+              selectedProduce === 'banana' && styles.selectorTextActive,
+            ]}>
+              🍌 Banana
+            </Text>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </View>
 
       {/* Camera View */}
       <CameraView 
@@ -105,6 +152,36 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.7)',
+  },
+  selectorContainer: {
+    position: 'absolute',
+    top: 100,
+    left: 20,
+    right: 20,
+    zIndex: 10,
+    alignItems: 'center',
+  },
+  selector: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 25,
+    padding: 4,
+  },
+  selectorOption: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  selectorOptionActive: {
+    backgroundColor: '#fff',
+  },
+  selectorText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  selectorTextActive: {
+    color: '#000',
   },
   errorContainer: {
     position: 'absolute',
