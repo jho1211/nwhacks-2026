@@ -1,0 +1,4 @@
+# Placeholder for TFLite model files
+# Add your trained models here:
+# - banana_model.tflite
+# - avocado_model.tflite
