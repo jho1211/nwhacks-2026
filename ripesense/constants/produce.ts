@@ -17,40 +17,19 @@ export const BANANA_RIPENESS_INFO: Record<BananaRipeness, RipenessInfo> = {
     emoji: '🍃',
     stage: 1,
   },
-  freshunripe: {
-    label: 'Fresh Unripe',
-    description: 'Starting to ripen with hints of yellow. Will be ready in 2-3 days.',
-    color: '#8BC34A', // Light green
-    emoji: '🌿',
-    stage: 2,
-  },
-  freshripe: {
-    label: 'Fresh Ripe',
-    description: 'Perfect for eating! Yellow with green tips. Peak freshness.',
-    color: '#FFEB3B', // Yellow
-    emoji: '🍌',
-    stage: 3,
-  },
   ripe: {
     label: 'Ripe',
     description: 'Fully yellow and sweet. Great for eating now or within a day.',
     color: '#FFC107', // Amber
     emoji: '🍌',
-    stage: 4,
+    stage: 2,
   },
   overripe: {
     label: 'Overripe',
     description: 'Yellow with brown spots. Very sweet - perfect for baking or smoothies!',
     color: '#FF9800', // Orange
     emoji: '🥧',
-    stage: 5,
-  },
-  rotten: {
-    label: 'Rotten',
-    description: 'Mostly brown or black. Not safe to eat. Time to compost!',
-    color: '#795548', // Brown
-    emoji: '🗑️',
-    stage: 6,
+    stage: 3,
   },
 };
 
@@ -103,7 +82,7 @@ export const BANANA_CONFIG: ProduceConfig = {
   displayName: 'Banana',
   emoji: '🍌',
   modelPath: 'banana_model.tflite',
-  classes: ['unripe', 'freshunripe', 'freshripe', 'ripe', 'overripe', 'rotten'],
+  classes: ['unripe', 'ripe', 'overripe'],
   ripenessInfo: BANANA_RIPENESS_INFO,
 };
 

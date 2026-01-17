@@ -8,11 +8,8 @@ export type ProduceType = 'banana' | 'avocado';
 // Banana ripeness classes (6 stages)
 export type BananaRipeness =
   | 'unripe'
-  | 'freshunripe'
-  | 'freshripe'
   | 'ripe'
   | 'overripe'
-  | 'rotten';
 
 // Avocado ripeness classes (5 stages)
 export type AvocadoRipeness =

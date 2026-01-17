@@ -1,18 +1,18 @@
 # RipeSense - Produce Ripeness Detector
 
-> A mobile app that uses on-device machine learning to identify produce and determine ripeness levels.
+> A mobile app that uses machine learning to identify produce and determine ripeness levels.
 
 ## 📋 Project Overview
 
-RipeSense is a React Native mobile application that allows users to take pictures of produce (starting with bananas, then avocados) and instantly receive ripeness classification. The app uses TensorFlow Lite models trained via Google Teachable Machine, running entirely on-device for fast, private, and offline-capable inference.
+RipeSense is a React Native mobile application that allows users to take pictures of produce (starting with avocados, then bananas) and instantly receive ripeness classification. The app sends images to a Python + FastAPI backend server that runs TensorFlow models trained via Google Teachable Machine.
 
 ### Key Features
 
 - 📸 **Camera-based scanning** - Point your camera at produce to analyze ripeness
-- 🧠 **On-device ML** - No internet required, instant results
-- 🍌 **Multi-produce support** - Starting with bananas, expanding to avocados
+- 🧠 **ML-powered classification** - TensorFlow model hosted on backend server
+- 🥑 **Multi-produce support** - Starting with avocados, expanding to bananas
 - 🎯 **Detailed classification** - Multiple ripeness stages per produce type
-- 🔒 **Privacy-first** - Images never leave your device
+- 🚀 **Fast inference** - Backend processing with instant results
 
 ---
 
@@ -22,11 +22,12 @@ RipeSense is a React Native mobile application that allows users to take picture
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| **Backend** | None (on-device only) | Eliminates server costs, enables offline use, reduces latency, improves privacy |
-| **ML Framework** | TensorFlow Lite | Optimized for mobile, works with Google Teachable Machine exports |
-| **Model Training** | Google Teachable Machine | Easy to train custom models, exports to TFLite format |
+| **Backend** | Python + FastAPI | Fast async API, easy TensorFlow integration, simple deployment |
+| **ML Framework** | TensorFlow / Keras | Works directly with Google Teachable Machine exports |
+| **Model Training** | Google Teachable Machine | Easy to train custom models, exports to TensorFlow format |
 | **Frontend Framework** | React Native + Expo | Cross-platform (iOS & Android), rapid development, managed workflow |
 | **Camera Library** | Expo Camera | Native integration with Expo, easy permissions handling |
+| **Image Transfer** | Base64 / Multipart | Send raw images from app to backend for processing |
 
 ### UI/UX Decisions
 
@@ -66,28 +67,47 @@ RipeSense is a React Native mobile application that allows users to take picture
 ## 🛠 Technical Stack
 
 ```
-┌─────────────────────────────────────────────┐
-│                  RipeSense                   │
-├─────────────────────────────────────────────┤
-│  UI Layer                                    │
-│  ├── React Native + Expo                    │
-│  ├── Expo Router (Navigation)               │
-│  └── Minimal/Clean Design System            │
-├─────────────────────────────────────────────┤
-│  Camera Layer                                │
-│  ├── Expo Camera                            │
-│  └── Expo Image Manipulator                 │
-├─────────────────────────────────────────────┤
-│  ML Inference Layer                          │
-│  ├── TensorFlow.js                          │
-│  ├── TFLite React Native                    │
-│  └── Custom Trained Models (Teachable ML)   │
-└─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                       RipeSense App                          │
+│                    (React Native + Expo)                     │
+├─────────────────────────────────────────────────────────────┤
+│  UI Layer                                                    │
+│  ├── React Native + Expo                                    │
+│  ├── Expo Router (Navigation)                               │
+│  └── Minimal/Clean Design System                            │
+├─────────────────────────────────────────────────────────────┤
+│  Camera Layer                                                │
+│  ├── Expo Camera                                            │
+│  └── Image capture & base64 encoding                        │
+├─────────────────────────────────────────────────────────────┤
+│  API Layer                                                   │
+│  └── HTTP POST requests to backend                          │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            │ HTTP POST (image)
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     Backend Server                           │
+│                   (Python + FastAPI)                         │
+├─────────────────────────────────────────────────────────────┤
+│  API Layer                                                   │
+│  ├── FastAPI endpoints                                      │
+│  ├── Image validation & parsing                             │
+│  └── CORS configuration                                     │
+├─────────────────────────────────────────────────────────────┤
+│  ML Inference Layer                                          │
+│  ├── TensorFlow / Keras                                     │
+│  ├── Image preprocessing (resize to 224x224)                │
+│  ├── Model inference                                        │
+│  └── Custom Trained Models (Teachable ML)                   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## 📱 App Structure
+
+### Frontend (React Native)
 
 ```
 ripesense/
@@ -98,10 +118,7 @@ ripesense/
 │   ├── _layout.tsx          # Root layout
 │   └── result.tsx           # Result display screen
 ├── assets/
-│   ├── images/              # App icons, splash screens
-│   └── models/              # TFLite model files
-│       ├── banana_model.tflite
-│       └── avocado_model.tflite
+│   └── images/              # App icons, splash screens
 ├── components/
 │   ├── camera/              # Camera-related components
 │   │   ├── CameraView.tsx
@@ -114,29 +131,51 @@ ripesense/
 │   ├── theme.ts             # Colors, typography
 │   └── produce.ts           # Produce types & classes
 ├── hooks/
-│   └── useProduceClassifier.ts  # ML inference hook
+│   └── useProduceClassifier.ts  # API call hook
 ├── services/
-│   └── classifier.ts        # TFLite model loading & inference
+│   └── api.ts               # Backend API service
 └── types/
     └── produce.ts           # TypeScript types
+```
+
+### Backend (Python + FastAPI)
+
+```
+backend/
+├── main.py                  # FastAPI app entry point
+├── requirements.txt         # Python dependencies
+├── models/
+│   ├── avocado/            # Avocado TensorFlow model
+│   │   ├── keras_model.h5
+│   │   └── labels.txt
+│   └── banana/             # Banana TensorFlow model (future)
+│       ├── keras_model.h5
+│       └── labels.txt
+├── services/
+│   ├── classifier.py       # Model loading & inference
+│   └── preprocessing.py    # Image preprocessing
+└── schemas/
+    └── classification.py   # Pydantic request/response models
 ```
 
 ---
 
 ## 🚀 MVP Scope
 
-### Phase 1: Banana Detection (Current)
-- [ ] Camera integration with Expo Camera
-- [ ] TFLite model integration
-- [ ] Banana ripeness classification (6 classes)
-- [ ] Clean results display UI
-
-### Phase 2: Avocado Detection (Next)
-- [ ] Add avocado model
-- [ ] Produce type selection/detection
+### Phase 1: Avocado Detection (Current)
+- [x] Camera integration with Expo Camera
+- [x] Results UI with ripeness display
+- [ ] Backend API with FastAPI
+- [ ] TensorFlow model integration on backend
 - [ ] Avocado ripeness classification (5 classes)
 
+### Phase 2: Banana Detection (Next)
+- [ ] Add banana model to backend
+- [ ] Produce type selection/detection
+- [ ] Banana ripeness classification (6 classes)
+
 ### Future Enhancements (Post-MVP)
+- [ ] Deploy backend to cloud (Railway, Render, AWS, etc.)
 - [ ] Additional produce types (tomatoes, mangoes, etc.)
 - [ ] Storage tips based on ripeness
 - [ ] "Days until ripe" estimation
@@ -147,10 +186,11 @@ ripesense/
 
 ## 📝 Notes
 
-- **Model Format**: Google Teachable Machine exports models in TFLite format, which is compatible with mobile deployment
-- **Image Preprocessing**: Images need to be resized to match model input dimensions (typically 224x224 for Teachable Machine models)
-- **Inference Speed**: On-device inference typically takes <100ms on modern devices
-- **Model Size**: Teachable Machine models are typically 2-5MB, suitable for mobile apps
+- **Model Format**: Google Teachable Machine exports models in Keras H5 format for use with TensorFlow
+- **Image Preprocessing**: Backend resizes images to 224x224 and normalizes pixel values
+- **Inference Speed**: Server-side inference is fast; main latency is network transfer
+- **Model Size**: Teachable Machine models are typically 2-5MB
+- **Local Development**: Backend runs on localhost; app connects via local network IP
 
 ---
 
@@ -158,9 +198,9 @@ ripesense/
 
 - [Expo Documentation](https://docs.expo.dev/)
 - [Expo Camera](https://docs.expo.dev/versions/latest/sdk/camera/)
+- [FastAPI Documentation](https://fastapi.tiangolo.com/)
 - [Google Teachable Machine](https://teachablemachine.withgoogle.com/)
-- [TensorFlow Lite](https://www.tensorflow.org/lite)
-- [TensorFlow.js React Native](https://www.tensorflow.org/js/guide/react_native)
+- [TensorFlow / Keras](https://www.tensorflow.org/)
 
 ---
 

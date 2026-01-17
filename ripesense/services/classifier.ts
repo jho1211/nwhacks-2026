@@ -1,91 +1,48 @@
 /**
- * TFLite Model Classifier Service
- * Handles loading and running inference with TensorFlow Lite models
+ * Backend API Classifier Service
+ * Sends images to the FastAPI backend for classification
  */
 
-import * as FileSystem from 'expo-file-system';
-import * as ImageManipulator from 'expo-image-manipulator';
+import { readAsStringAsync, EncodingType } from 'expo-file-system/legacy';
 import { ProduceType, ClassificationResult, PredictionScore, RipenessClass } from '@/types/produce';
-import { PRODUCE_CONFIGS, MODEL_INPUT_CONFIG } from '@/constants/produce';
 
-// Try to import TFLite - will fail in Expo Go but work in dev builds
-let TFLiteModule: any = null;
-let tfliteModel: any = null;
-
-try {
-  TFLiteModule = require('react-native-tflite');
-} catch (e) {
-  console.log('TFLite module not available (expected in Expo Go)');
-}
+// ============================================================
+// API CONFIGURATION
+// ============================================================
+// For physical devices, set your ngrok URL here:
+const API_BASE_URL = 'https://5a17eeba374b.ngrok-free.app';
 
 // Model state
 let isModelLoaded = false;
 let currentProduceType: ProduceType | null = null;
-let useMockData = true; // Fall back to mock data if TFLite unavailable
 
 /**
- * Label mapping from Teachable Machine output to our internal labels
- * Format from TM: "0 avocado_underripe", "1 avocado_breaking", etc.
- */
-const AVOCADO_LABEL_MAP: Record<string, RipenessClass> = {
-  'avocado_underripe': 'underripe',
-  'avocado_breaking': 'breaking',
-  'avocado_ripe1': 'ripe_stage_1',
-  'avocado_ripe2': 'ripe_stage_2',
-  'avocado_overripe': 'overripe',
-};
-
-const BANANA_LABEL_MAP: Record<string, RipenessClass> = {
-  'banana_unripe': 'unripe',
-  'banana_freshunripe': 'freshunripe',
-  'banana_freshripe': 'freshripe',
-  'banana_ripe': 'ripe',
-  'banana_overripe': 'overripe',
-  'banana_rotten': 'rotten',
-};
-
-/**
- * Load the TFLite model for a specific produce type
+ * Load the model for a specific produce type
+ * For backend API, this just sets the current produce type
  */
 export async function loadModel(produceType: ProduceType): Promise<boolean> {
   try {
-    const config = PRODUCE_CONFIGS[produceType];
-    console.log(`Loading model for: ${produceType}`);
+    console.log(`Setting produce type: ${produceType}`);
     
-    // Check if TFLite is available
-    if (TFLiteModule && TFLiteModule.loadTensorflowModel) {
-      try {
-        // Load model based on produce type
-        if (produceType === 'avocado') {
-          tfliteModel = await TFLiteModule.loadTensorflowModel(
-            require('@/assets/models/avocado_tflite/model_unquant.tflite')
-          );
-        } else {
-          // Banana model - update path when you have it
-          console.log('Banana model not yet available, using mock data');
-          useMockData = true;
-        }
-        
-        if (tfliteModel) {
-          useMockData = false;
-          console.log('TFLite model loaded successfully');
-        }
-      } catch (modelError) {
-        console.warn('Failed to load TFLite model, using mock data:', modelError);
-        useMockData = true;
+    // Check if backend is reachable
+    try {
+      const response = await fetch(`${API_BASE_URL}/health`);
+      if (!response.ok) {
+        console.warn('Backend health check failed, but continuing...');
+      } else {
+        console.log('Backend is healthy');
       }
-    } else {
-      console.log('TFLite not available (Expo Go), using mock data');
-      useMockData = true;
+    } catch (healthError) {
+      console.warn('Could not reach backend, but will try classification anyway:', healthError);
     }
     
     isModelLoaded = true;
     currentProduceType = produceType;
     
-    console.log(`Model ready for ${produceType} (mock: ${useMockData})`);
+    console.log(`Ready to classify ${produceType}`);
     return true;
   } catch (error) {
-    console.error('Failed to load model:', error);
+    console.error('Failed to initialize:', error);
     isModelLoaded = false;
     return false;
   }
@@ -106,80 +63,93 @@ export function getCurrentProduceType(): ProduceType | null {
 }
 
 /**
- * Preprocess image for model input
- * Resizes the image to 224x224 as required by Teachable Machine models
+ * Convert image to base64 for API
  */
-export async function preprocessImage(imageUri: string): Promise<string> {
+export async function getImageBase64(imageUri: string): Promise<string> {
   try {
-    console.log(`Preprocessing image: ${imageUri}`);
+    console.log(`Converting image to base64: ${imageUri}`);
     
-    // Resize image to model input size (224x224 for Teachable Machine)
-    const manipulated = await ImageManipulator.manipulateAsync(
-      imageUri,
-      [
-        { resize: { width: MODEL_INPUT_CONFIG.width, height: MODEL_INPUT_CONFIG.height } },
-      ],
-      { 
-        compress: 0.8, 
-        format: ImageManipulator.SaveFormat.JPEG,
-        base64: true,
-      }
-    );
+    // Read the image file as base64
+    const base64 = await readAsStringAsync(imageUri, {
+      encoding: EncodingType.Base64,
+    });
     
-    console.log(`Image resized to ${MODEL_INPUT_CONFIG.width}x${MODEL_INPUT_CONFIG.height}`);
-    return manipulated.uri;
+    // Return with data URL prefix for backend
+    return `data:image/jpeg;base64,${base64}`;
   } catch (error) {
-    console.error('Failed to preprocess image:', error);
-    return imageUri; // Return original if preprocessing fails
+    console.error('Failed to convert image to base64:', error);
+    throw new Error('Failed to convert image to base64');
   }
 }
 
 /**
- * Run inference on an image
+ * Backend API response types
+ */
+interface BackendPrediction {
+  class_name: string;
+  class_label: string;
+  confidence: number;
+}
+
+interface BackendResponse {
+  success: boolean;
+  produce_type: string;
+  predicted_class: string;
+  predicted_label: string;
+  confidence: number;
+  all_predictions: BackendPrediction[];
+}
+
+/**
+ * Run classification via backend API
  */
 export async function classify(imageUri: string): Promise<ClassificationResult | null> {
   if (!isModelLoaded || !currentProduceType) {
-    console.error('Model not loaded. Call loadModel() first.');
+    console.error('Not initialized. Call loadModel() first.');
     return null;
   }
 
   try {
-    const config = PRODUCE_CONFIGS[currentProduceType];
+    console.log('Preparing image for classification...');
     
-    // Preprocess the image
-    const processedUri = await preprocessImage(imageUri);
+    // Convert image to base64
+    const imageBase64 = await getImageBase64(imageUri);
     
-    let predictions: PredictionScore[];
+    console.log(`Sending image to backend for ${currentProduceType} classification...`);
     
-    if (!useMockData && tfliteModel) {
-      // Run actual TFLite inference
-      try {
-        const output = await tfliteModel.run([processedUri]);
-        
-        // Parse TFLite output
-        const labelMap = currentProduceType === 'avocado' ? AVOCADO_LABEL_MAP : BANANA_LABEL_MAP;
-        const outputArray = output[0] as number[];
-        
-        predictions = Object.entries(labelMap).map(([tmLabel, ourLabel], index) => ({
-          label: ourLabel,
-          confidence: outputArray[index] || 0,
-        }));
-      } catch (inferenceError) {
-        console.error('TFLite inference failed, falling back to mock:', inferenceError);
-        predictions = getMockPredictions(config.classes);
-      }
-    } else {
-      // Use mock data for testing in Expo Go
-      predictions = getMockPredictions(config.classes);
+    // Send POST request to backend
+    const response = await fetch(`${API_BASE_URL}/classify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        image: imageBase64,
+        produce_type: currentProduceType,
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `Server error: ${response.status}`);
     }
     
-    // Sort by confidence
-    predictions.sort((a, b) => b.confidence - a.confidence);
+    const data: BackendResponse = await response.json();
+    
+    if (!data.success) {
+      throw new Error('Classification failed on server');
+    }
+    
+    // Map backend response to our ClassificationResult format
+    const predictions: PredictionScore[] = data.all_predictions.map((pred) => ({
+      label: pred.class_name as RipenessClass,
+      confidence: pred.confidence,
+    }));
     
     const result: ClassificationResult = {
       produceType: currentProduceType,
-      ripeness: predictions[0].label,
-      confidence: predictions[0].confidence,
+      ripeness: data.predicted_class as RipenessClass,
+      confidence: data.confidence,
       allPredictions: predictions,
     };
     
@@ -187,33 +157,15 @@ export async function classify(imageUri: string): Promise<ClassificationResult |
     return result;
   } catch (error) {
     console.error('Classification failed:', error);
-    return null;
+    throw error;
   }
 }
 
 /**
- * Generate mock predictions for testing in Expo Go
- */
-function getMockPredictions(classes: string[]): PredictionScore[] {
-  // Randomly pick a "winning" class
-  const winnerIndex = Math.floor(Math.random() * classes.length);
-  
-  return classes.map((cls, index) => ({
-    label: cls as RipenessClass,
-    confidence: index === winnerIndex ? 0.7 + Math.random() * 0.25 : Math.random() * 0.15,
-  }));
-}
-
-/**
- * Unload the current model to free memory
+ * Reset the classifier state
  */
 export async function unloadModel(): Promise<void> {
-  if (tfliteModel && tfliteModel.dispose) {
-    await tfliteModel.dispose();
-  }
-  tfliteModel = null;
   isModelLoaded = false;
   currentProduceType = null;
-  useMockData = true;
-  console.log('Model unloaded');
+  console.log('Classifier reset');
 }

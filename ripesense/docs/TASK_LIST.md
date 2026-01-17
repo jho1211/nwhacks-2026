@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the step-by-step tasks to build the RipeSense produce ripeness detection app. Tasks are organized by phase and priority.
+This document outlines the step-by-step tasks to build the RipeSense produce ripeness detection app. The app uses a **Python + FastAPI backend** for TensorFlow model inference, with a **React Native + Expo frontend** for the mobile UI.
 
 ---
 
@@ -71,60 +71,61 @@ This document outlines the step-by-step tasks to build the RipeSense produce rip
 
 ---
 
-## ✅ Phase 3: ML Model Integration (COMPLETED)
+## 🔄 Phase 3: Backend API (NEW - In Progress)
 
-### 3.1 Model Preparation
-- [x] Train avocado ripeness model in Google Teachable Machine
-- [x] Export model as TensorFlow Lite (.tflite) format
-- [x] Export model labels file
-- [x] Add model files to `assets/models/avocado_tflite/` directory
-- [x] Configure Metro to bundle `.tflite` files (metro.config.js)
+### 3.1 Backend Setup
+- [x] Create `backend/` directory in project root
+- [x] Set up Python virtual environment
+- [x] Install dependencies (FastAPI, uvicorn, tensorflow, pillow, python-multipart)
+- [x] Create `requirements.txt`
+- [x] Create `main.py` with FastAPI app
 
-### 3.2 TFLite Setup
-- [x] Install `react-native-tflite` package
-- [x] Create `classifier.ts` service for model operations
-- [x] Implement model loading with fallback to mock data
-- [x] Handle model loading states (loading, ready, error)
-- [x] Create label mapping from Teachable Machine to internal labels
+### 3.2 Model Integration
+- [x] Copy avocado Keras model to `backend/models/avocado/`
+- [x] Create `classifier.py` service for model loading
+- [x] Implement image preprocessing (resize to 224x224, normalize)
+- [x] Implement inference function
+- [x] Create label mapping from model output to ripeness classes
 
-### 3.3 Inference Pipeline
-- [x] Create `useProduceClassifier` hook
-- [x] Implement image preprocessing (resize to 224x224)
-- [x] Run inference on captured image (or mock in Expo Go)
-- [x] Parse model output to classification result
-- [x] Calculate confidence scores for each class
-- [x] Return top prediction with confidence
+### 3.3 API Endpoints
+- [x] Create POST `/classify` endpoint
+- [x] Accept image as base64 or multipart file upload
+- [x] Add `produce_type` parameter (avocado, banana)
+- [x] Return JSON with ripeness class, confidence, all predictions
+- [x] Configure CORS for mobile app access
 
-### Note on Development Builds
-The app works in Expo Go with **mock data** for testing UI. 
-To use the actual TFLite model, you need to create a development build:
-```bash
-npx expo prebuild
-npx expo run:ios  # or run:android
-```
+### 3.4 Frontend Integration
+- [x] Update `classifier.ts` service to call backend API
+- [x] Send image as base64 to `/classify` endpoint
+- [x] Handle API responses and map to `ClassificationResult` type
+- [ ] Test full flow: capture → upload → classify → display
+
+### Previous Phase 3 (On-Device TFLite - DEPRECATED)
+The previous on-device TFLite approach has been replaced with a backend API.
+Files like `services/classifier.ts` will be updated to call the backend API instead.
 
 ---
 
 ## ✅ Phase 4: Results UI (COMPLETED)
 
 ### 4.1 Results Screen
-- [ ] Create result display screen/modal
-- [ ] Show captured image thumbnail
-- [ ] Display detected produce type
-- [ ] Show ripeness classification prominently
+- [x] Create result display screen/modal
+- [x] Show captured image thumbnail
+- [x] Display detected produce type
+- [x] Show ripeness classification prominently
 
 ### 4.2 Ripeness Visualization
-- [ ] Create `RipenessIndicator` component (visual scale)
-- [ ] Create `RipenessCard` component with details
-- [ ] Color-code ripeness stages (green → yellow → brown)
-- [ ] Show confidence percentage
-- [ ] Add ripeness description text
+- [x] Create `RipenessIndicator` component (visual scale)
+- [x] Create `RipenessCard` component with details
+- [x] Color-code ripeness stages (green → yellow → brown)
+- [x] Show confidence percentage
+- [x] Add ripeness description text
 
 ### 4.3 User Flow
-- [ ] Implement navigation from camera → result
-- [ ] Add "Scan Again" button to return to camera
-- [ ] Add smooth transitions between screens
-- [ ] Handle loading state during inference
+- [x] Implement navigation from camera → result
+- [x] Add "Scan Again" button to return to camera
+- [x] Add smooth transitions between screens
+- [x] Handle loading state during inference
 
 ---
 
@@ -156,44 +157,50 @@ npx expo run:ios  # or run:android
 
 ---
 
-## 🥑 Phase 6: Avocado Support (Post-MVP)
+## 🍌 Phase 6: Banana Support (Post-MVP)
 
-### 6.1 Avocado Model
-- [ ] Train avocado ripeness model in Teachable Machine
-- [ ] Export and add avocado TFLite model
-- [ ] Update classifier service for multi-model support
+### 6.1 Banana Model
+- [ ] Train banana ripeness model in Teachable Machine
+- [ ] Export Keras model and labels
+- [ ] Add banana model to backend `models/banana/` directory
 
-### 6.2 Produce Selection
+### 6.2 Backend Updates
+- [ ] Update classifier service to support multiple models
+- [ ] Add banana label mapping
+- [ ] Test banana classification endpoint
+
+### 6.3 Frontend Updates
 - [ ] Add produce type selector (banana/avocado)
-- [ ] Or implement auto-detection of produce type
-- [ ] Update results UI for avocado-specific classes
-
-### 6.3 UI Updates
-- [ ] Update ripeness indicators for avocado stages
-- [ ] Add avocado-specific descriptions
-- [ ] Test full flow with avocados
+- [ ] Update UI to show correct produce emoji/info
+- [ ] Test full flow with bananas
 
 ---
 
 ## 📦 Phase 7: Build & Distribution
 
 ### 7.1 App Configuration
-- [ ] Update app name, slug, and bundle IDs
+- [x] Update app name, slug, and bundle IDs
 - [ ] Create app icon (1024x1024)
 - [ ] Create splash screen
-- [ ] Configure adaptive icon for Android
+- [x] Configure adaptive icon for Android
 - [ ] Add app store metadata
 
-### 7.2 Build
-- [ ] Test Expo Go development build
-- [ ] Create development build with EAS
+### 7.2 Backend Deployment (Optional)
+- [ ] Choose hosting provider (Railway, Render, Fly.io, AWS, etc.)
+- [ ] Deploy FastAPI backend to cloud
+- [ ] Update app to use production backend URL
+- [ ] Set up environment variables for API URL
+
+### 7.3 Mobile App Build
+- [x] Test with Expo Go (local backend)
+- [ ] Create development build with EAS (if needed)
 - [ ] Create preview build for testing
 - [ ] Create production build
 
-### 7.3 Distribution
+### 7.4 Distribution
 - [ ] Submit to Apple App Store (if applicable)
 - [ ] Submit to Google Play Store (if applicable)
-- [ ] Or distribute via Expo for hackathon demo
+- [x] Demo via Expo Go + local backend for hackathon
 
 ---
 
@@ -217,10 +224,10 @@ This minimal path gets you a working demo in ~4-6 hours of focused work.
 |-------|--------|------------|
 | Phase 1: Setup | ✅ Complete | 100% |
 | Phase 2: Camera | ✅ Complete | 100% |
-| Phase 3: ML Model | ✅ Complete | 100% |
+| Phase 3: Backend API | 🔄 In Progress | 90% |
 | Phase 4: Results UI | ✅ Complete | 100% |
-| Phase 5: Testing | 🔄 In Progress | 50% |
-| Phase 6: Avocado | ✅ Complete | 100% |
+| Phase 5: Testing | ⏳ Not Started | 0% |
+| Phase 6: Banana Support | ⏳ Not Started | 0% |
 | Phase 7: Build | ⏳ Not Started | 0% |
 
 ---
